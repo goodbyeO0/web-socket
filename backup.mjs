@@ -8,7 +8,7 @@ import fs from 'fs';
 
 const app = express();
 app.use(cors({
-    origin: ["http://localhost:5173", "https://5cb83tf0-5173.asse.devtunnels.ms"],
+    origin: "*",
     methods: ["GET", "POST"],
     credentials: true
 }));
@@ -19,11 +19,8 @@ let serverInstance = http.createServer(app);
 const io = new Server(serverInstance, {
     cors: {
         origin: [
-            "http://localhost:5173",
-            "https://5cb83tf0-5173.asse.devtunnels.ms",  // Frontend DevTunnel
-            "https://5cb83tf0-3000.asse.devtunnels.ms"   // Backend DevTunnel
         ],
-        methods: ["GET", "POST"],
+        methods: "*",
         credentials: true
     }
 });
