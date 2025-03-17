@@ -5,21 +5,21 @@ import cors from "cors"
 import { v4 as uuidv4 } from "uuid";
 
 const app = express();
-app.use(cors({
-    origin: "*",
+const serverInstance = http.createServer(app);
+
+// Define a single CORS configuration
+const corsConfig = {
+    origin: "https://www.blocknogotchi.fun", // Replace with your specific frontend domain
     methods: ["GET", "POST"],
     credentials: true
-}));
+};
 
-let serverInstance = http.createServer(app);
+// Apply CORS to Express
+app.use(cors(corsConfig));
 
-
+// Apply the same CORS config to Socket.IO
 const io = new Server(serverInstance, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST"],
-        credentials: true
-    }
+    cors: corsConfig
 });
 
 const waitingPlayer = []
