@@ -32,31 +32,44 @@ app.get("/", (req, res) => {
 io.on("connection", (socket) => {
     console.log(`A user is connected ${socket.id}`)
 
-    // handle join game
-    socket.on("joinGame", () => {
-        console.log(`Player ${socket.id} wants to join the game`)
+    // handle join game with player data
+    socket.on("joinGame", (playerData) => {
+        console.log(`Player ${socket.id} wants to join the game with data:`, playerData)
 
         if (waitingPlayer.length > 0) {
-            const opponent = waitingPlayer.shift();
+            const opponentId = waitingPlayer[0].id;
+            const opponentData = waitingPlayer[0].playerData;
+            waitingPlayer.shift();
             const gameId = uuidv4();
             console.log(`Game Id: ${gameId}`)
 
             socket.join(gameId)
-            io.sockets.sockets.get(opponent).join(gameId);
+            io.sockets.sockets.get(opponentId).join(gameId);
 
             activeGames[gameId] = {
-                players: [socket.id, opponent],
+                players: [
+                    { id: socket.id, data: playerData },
+                    { id: opponentId, data: opponentData }
+                ],
                 gameId: gameId,
                 moves: {},
             }
 
-            io.to(gameId).emit("gameStart", {
+            // Send game start event with opponent data to both players
+            io.to(socket.id).emit("gameStart", {
                 gameId: gameId,
-                opponent: true
+                opponent: true,
+                opponentData: opponentData
+            })
+
+            io.to(opponentId).emit("gameStart", {
+                gameId: gameId,
+                opponent: true,
+                opponentData: playerData
             })
 
         } else {
-            waitingPlayer.push(socket.id)
+            waitingPlayer.push({ id: socket.id, playerData: playerData })
             socket.emit("waiting");
             console.log(`Player ${socket.id} is waiting for an opponent`)
         }
@@ -69,13 +82,17 @@ io.on("connection", (socket) => {
 
         game.moves[socket.id] = data.move
 
-        const opponent = game.players.find(id => id !== socket.id);
-        io.to(opponent).emit("opponentMoved")
+        // Find opponent with their data
+        const opponentPlayer = game.players.find(player => player.id !== socket.id);
+        if (opponentPlayer) {
+            io.to(opponentPlayer.id).emit("opponentMoved");
+        }
 
         if (Object.keys(game.moves).length === 2) {
-            game.players.forEach(playerId => {
-                const yourMove = game.moves[playerId];
-                const opponentMove = game.moves[game.players.find(id => id !== playerId)];
+            game.players.forEach(player => {
+                const yourMove = game.moves[player.id];
+                const opponent = game.players.find(p => p.id !== player.id);
+                const opponentMove = game.moves[opponent.id];
 
                 let result = {
                     yourMove,
@@ -104,7 +121,7 @@ io.on("connection", (socket) => {
                     result.manaGained.push("opponent");
                 }
 
-                io.to(playerId).emit("roundResult", result);
+                io.to(player.id).emit("roundResult", result);
             });
 
             game.moves = {};
@@ -132,7 +149,7 @@ io.on("connection", (socket) => {
     });
 })
 
-const PORT = 3003;
+const PORT = 3006;
 serverInstance.listen(PORT, () => {
     console.log(`listen to port ${PORT}`)
 })
